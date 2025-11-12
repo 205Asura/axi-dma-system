@@ -50,7 +50,6 @@ int main(void) {
     // --- Test MM2S (Memory to Stream) ---  
     xil_printf("Starting MM2S transfer...\r\n");
     dma_start_transfer((u32)TxBuffer, TEST_PKT_LEN_BYTES, 1); // direction=1: MM2S
-    debug_gpio_status();
     if (!dma_wait_for_completion(5000)) {
         xil_printf("❌ MM2S Timeout!\r\n");
         return XST_FAILURE;
@@ -84,6 +83,18 @@ int main(void) {
         }
     }
     
+    for (int i = 0; i < TEST_PKT_LEN_BYTES; i++)
+    {
+        xil_printf("0x%02X ", TxBuffer[i]);
+    }
+    xil_printf("\r\n");
+
+    for (int i = 0; i < TEST_PKT_LEN_BYTES; i++)
+    {
+        xil_printf("0x%02X ", RxBuffer[i]);
+    }
+    xil_printf("\r\n");
+
     if (errors == 0) {
         xil_printf("🎉 All tests PASSED! Data verified successfully.\r\n");
     } else {
