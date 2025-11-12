@@ -64,7 +64,10 @@ module axi_dma_shim #(
     output wire [3:0]                         m_axis_tkeep,
     output wire                               m_axis_tlast,
     output wire                               m_axis_tvalid,
-    input  wire                               m_axis_tready
+    input  wire                               m_axis_tready,
+    
+    output reg [3:0] state, next_state
+
 );
 
     // AXIS passthrough (đường thẳng)
@@ -86,9 +89,9 @@ module axi_dma_shim #(
     localparam S2MM_LENGTH  = 32'h58;
 
     // --- Bit trường điều khiển/trạng thái ---
-    localparam CR_RUN_STOP  = 1'b1 << 0;  // Run/Stop = 1 (start)
-    localparam IRQ_IOC_EN   = 1'b1 << 12;  // IOC_IrqEn
-    localparam IRQ_IOC_MASK = 1'b1 << 12;  // viết 1 để clear IOC
+    localparam CR_RUN_STOP  = 32'b1 << 0;  // Run/Stop = 1 (start)
+    localparam IRQ_IOC_EN   = 32'b1 << 12;  // IOC_IrqEn
+    localparam IRQ_IOC_MASK = 32'b1 << 12;  // viết 1 để clear IOC
 
     // --- FSM state ---
     localparam ST_IDLE      = 4'd0;
@@ -100,7 +103,7 @@ module axi_dma_shim #(
     localparam ST_ACK_IRQ   = 4'd6;
     localparam ST_DONE      = 4'd7;
 
-    reg [3:0]  state, next_state;
+//    reg [3:0]  state, next_state;
 
     // Latch tham số 1 lệnh
     reg [31:0] latched_addr;
@@ -115,6 +118,21 @@ module axi_dma_shim #(
 
     // Cờ handshake cho từng giao dịch
     reg aw_done, w_done, ar_done;
+    
+    
+    // Edge detector cho start (đồng bộ theo clk của shim)
+    reg start_d1, start_d2;
+    wire start_pulse = start_d1 & ~start_d2;
+    
+    always @(posedge clk or negedge resetn) begin
+      if (!resetn) begin
+        start_d1 <= 1'b0;
+        start_d2 <= 1'b0;
+      end else begin
+        start_d1 <= dma_start_transfer; // đồng bộ level vào domain shim
+        start_d2 <= start_d1;
+      end
+    end
 
     // -------------------------------------------------------
     // FSM State Register
@@ -135,7 +153,7 @@ module axi_dma_shim #(
         
         case (state)
             ST_IDLE: begin
-                if (dma_start_transfer) begin
+                if (start_pulse) begin
                     next_state = ST_WR_DMACR;
                 end
             end
@@ -221,8 +239,8 @@ module axi_dma_shim #(
 
         end else begin
             // tạo xung done 1 clock
-            if (dma_transfer_done)
-                dma_transfer_done <= 1'b0;
+//            if (dma_transfer_done)
+//                dma_transfer_done <= 1'b0;
 
             // Default values
             m_axi_lite_awvalid <= 1'b0;
@@ -241,7 +259,8 @@ module axi_dma_shim #(
                     w_done  <= 1'b0;
                     ar_done <= 1'b0;
 
-                    if (dma_start_transfer) begin
+                    if (start_pulse) begin
+                        dma_transfer_done <= 0;
                         latched_addr <= dma_ddr_addr;
                         // Tuy nhiên theo giao ước, dma_length_bytes ĐÃ là bytes → gán thẳng:
                         latched_len  <= dma_length_bytes; // <<== CHUẨN
@@ -286,7 +305,15 @@ module axi_dma_shim #(
                         end
                     end
                     // B
-                    m_axi_lite_bready <= 1'b1;
+                    if (aw_done && w_done) begin
+                        m_axi_lite_bready <= 1'b1;
+                        if (m_axi_lite_bvalid && m_axi_lite_bready) begin
+                          m_axi_lite_bready <= 1'b0;
+                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                        end
+                    end else begin
+                        m_axi_lite_bready <= 1'b0;
+                    end 
                 end
 
                 // ---------------------------------------------------
@@ -312,7 +339,15 @@ module axi_dma_shim #(
                         end
                     end
                     // B
-                    m_axi_lite_bready <= 1'b1;
+                    if (aw_done && w_done) begin
+                        m_axi_lite_bready <= 1'b1;
+                        if (m_axi_lite_bvalid && m_axi_lite_bready) begin
+                          m_axi_lite_bready <= 1'b0;
+                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                        end
+                    end else begin
+                        m_axi_lite_bready <= 1'b0;
+                    end 
                 end
 
                 // ---------------------------------------------------
@@ -338,14 +373,22 @@ module axi_dma_shim #(
                         end
                     end
                     // B
-                    m_axi_lite_bready <= 1'b1;
+                    if (aw_done && w_done) begin
+                        m_axi_lite_bready <= 1'b1;
+                        if (m_axi_lite_bvalid && m_axi_lite_bready) begin
+                          m_axi_lite_bready <= 1'b0;
+                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                        end
+                    end else begin
+                        m_axi_lite_bready <= 1'b0;
+                    end 
                 end
 
                 // ---------------------------------------------------
                 // Bắt đầu đọc DMASR (poll)
                 // ---------------------------------------------------
                 ST_POLL_RD: begin
-                    // AR
+                // AR - Gửi read request (chỉ khi chưa gửi hoặc cần gửi lại)
                     if (!ar_done) begin
                         m_axi_lite_arvalid <= 1'b1;
                         m_axi_lite_araddr  <= reg_dmasr_addr;
@@ -354,9 +397,21 @@ module axi_dma_shim #(
                             ar_done <= 1'b1;
                         end
                     end
-                    // R
+                    
+                    // R - Luôn sẵn sàng nhận data
                     m_axi_lite_rready <= 1'b1;
-                end
+                    
+                    // Khi nhận được data, check status và reset để poll lại nếu cần
+                    if (m_axi_lite_rvalid && m_axi_lite_rready) begin
+                        if (m_axi_lite_rdata[12] || m_axi_lite_rdata[1]) begin
+                            // Có IOC (bit 12) hoặc Idle (bit 1) → chuyển state
+                            ar_done <= 1'b0;  // Reset cho lần sau
+                        end else begin
+                            // Chưa xong, tiếp tục poll
+                            ar_done <= 1'b0;  // Reset để gửi read request lại
+                        end
+                    end
+                end 
 
                 // ---------------------------------------------------
                 // GHI DMASR để XOÁ IOC
@@ -381,7 +436,15 @@ module axi_dma_shim #(
                         end
                     end
                     // B
-                    m_axi_lite_bready <= 1'b1;
+                    if (aw_done && w_done) begin
+                        m_axi_lite_bready <= 1'b1;
+                        if (m_axi_lite_bvalid && m_axi_lite_bready) begin
+                          m_axi_lite_bready <= 1'b0;
+                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                        end
+                    end else begin
+                        m_axi_lite_bready <= 1'b0;
+                    end 
                 end
 
                 // ---------------------------------------------------
