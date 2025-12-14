@@ -1,15 +1,5 @@
 `timescale 1 ns / 1 ps
-/*
- * Module: axi_dma_shim (Simple Mode, Blocking)
- * - PS điều khiển qua AXI GPIO (friendly interface)
- * - Shim làm AXI-Lite Master để ghi thanh ghi AXI DMA
- * - AXIS passthrough (tdata/tkeep/tlast/tvalid/tready)
- * - Poll DMASR đến khi xong (IOC) rồi ACK, phát xung dma_transfer_done
- *
- * Lưu ý:
- *  - dma_length_bytes[29:0] đã là số byte (đã dịch trái ở PS và slice [31:2] ở BD),
- *    NÊN ở shim dùng trực tiếp (KHÔNG dịch trái thêm lần nữa).
- */
+
 
 module axi_dma_shim #(
     parameter C_M_AXI_LITE_ADDR_WIDTH = 32,
@@ -19,14 +9,14 @@ module axi_dma_shim #(
     input  wire                         clk,
     input  wire                         resetn,
 
-    // Friendly interface từ AXI GPIO
-    input  wire                         dma_start_transfer,   // xung 1 clock
+    // Friendly interface
+    input  wire                         dma_start_transfer,   
     input  wire                         dma_direction,        // 1 = MM2S, 0 = S2MM
     input  wire [31:0]                  dma_ddr_addr,         // SA (MM2S) / DA (S2MM)
-    input  wire [29:0]                  dma_length_bytes,     // SỐ BYTE (đã chuẩn hoá)
-    output reg                          dma_transfer_done,    // xung 1 clock khi xong
+    input  wire [29:0]                  dma_length_bytes,     
+    output reg                          dma_transfer_done,    
 
-    // AXI-Lite Master đến AXI DMA (S_AXI_LITE)
+    // AXI-Lite Master to AXI DMA (S_AXI_LITE)
     output reg  [C_M_AXI_LITE_ADDR_WIDTH-1:0] m_axi_lite_awaddr,
     output reg  [2:0]                         m_axi_lite_awprot,
     output reg                                m_axi_lite_awvalid,
@@ -51,13 +41,19 @@ module axi_dma_shim #(
     input  wire                               m_axi_lite_rvalid,
     output reg                                m_axi_lite_rready,
 
-    // AXIS passthrough (nối accelerator/DMA)
+    // AXIS passthrough 
     // DMA MM2S -> shim s_axis
     input  wire [31:0]                        s_axis_tdata,
     input  wire [3:0]                         s_axis_tkeep,
     input  wire                               s_axis_tlast,
     input  wire                               s_axis_tvalid,
     output wire                               s_axis_tready,
+    
+    output wire [31:0]                        m_axis_accel_tdata,
+    output wire [3:0]                         m_axis_accel_tkeep,
+    output wire                               m_axis_accel_tlast,
+    output wire                               m_axis_accel_tvalid,
+    input  wire                               m_axis_accel_tready,
 
     // shim m_axis -> DMA S2MM
     output wire [31:0]                        m_axis_tdata,
@@ -66,18 +62,34 @@ module axi_dma_shim #(
     output wire                               m_axis_tvalid,
     input  wire                               m_axis_tready,
     
+    input wire [31:0]                        s_accel_axis_tdata,
+    input wire [3:0]                         s_accel_axis_tkeep,
+    input wire                               s_accel_axis_tlast,
+    input wire                               s_accel_axis_tvalid,
+    output wire                              s_accel_axis_tready,
+    
     output reg [3:0] state, next_state
 
 );
 
-    // AXIS passthrough (đường thẳng)
-    assign m_axis_tdata  = s_axis_tdata;
-    assign m_axis_tkeep  = s_axis_tkeep;
-    assign m_axis_tlast  = s_axis_tlast;
-    assign m_axis_tvalid = s_axis_tvalid;
-    assign s_axis_tready = m_axis_tready;
+    // MM2S Pass through
+    assign m_axis_accel_tdata  = s_axis_tdata;
+    assign m_axis_accel_tkeep  = s_axis_tkeep;
+    assign m_axis_accel_tlast  = s_axis_tlast;
+    assign m_axis_accel_tvalid = s_axis_tvalid;
+//    assign s_axis_tready = m_axis_accel_tready;
+    assign s_axis_tready = 1'b1;
 
-    // --- Thanh ghi địa chỉ AXI DMA (offset chuẩn Xilinx) ---
+    // S2MM Pass through
+    assign m_axis_tdata  = s_accel_axis_tdata;
+    assign m_axis_tkeep  = s_accel_axis_tkeep;
+    assign m_axis_tlast  = s_accel_axis_tlast;
+    assign m_axis_tvalid = s_accel_axis_tvalid;
+    assign s_accel_axis_tready = m_axis_tready;
+    
+    
+
+    // Register offset AXI DMA 
     localparam MM2S_DMACR   = 32'h00;  // Control
     localparam MM2S_DMASR   = 32'h04;  // Status
     localparam MM2S_SA      = 32'h18;  // Source Address
@@ -88,12 +100,12 @@ module axi_dma_shim #(
     localparam S2MM_DA      = 32'h48;  // Dest Address
     localparam S2MM_LENGTH  = 32'h58;
 
-    // --- Bit trường điều khiển/trạng thái ---
+    // Controll bit
     localparam CR_RUN_STOP  = 32'b1 << 0;  // Run/Stop = 1 (start)
     localparam IRQ_IOC_EN   = 32'b1 << 12;  // IOC_IrqEn
     localparam IRQ_IOC_MASK = 32'b1 << 12;  // viết 1 để clear IOC
 
-    // --- FSM state ---
+    // FSM state 
     localparam ST_IDLE      = 4'd0;
     localparam ST_WR_DMACR  = 4'd1;
     localparam ST_WR_ADDR   = 4'd2;
@@ -105,22 +117,22 @@ module axi_dma_shim #(
 
 //    reg [3:0]  state, next_state;
 
-    // Latch tham số 1 lệnh
+    // Latch 
     reg [31:0] latched_addr;
     reg [31:0] latched_len;
     reg        latched_dir;  // 1=MM2S, 0=S2MM
 
-    // Địa chỉ thanh ghi mục tiêu cho lệnh hiện tại
+    // Addr of target register
     reg [31:0] reg_dmacr_addr;
     reg [31:0] reg_addr_addr;
     reg [31:0] reg_len_addr;
     reg [31:0] reg_dmasr_addr;
 
-    // Cờ handshake cho từng giao dịch
+    // Handshake flag
     reg aw_done, w_done, ar_done;
     
     
-    // Edge detector cho start (đồng bộ theo clk của shim)
+    // Edge detector for dma_start_transfer
     reg start_d1, start_d2;
     wire start_pulse = start_d1 & ~start_d2;
     
@@ -129,7 +141,7 @@ module axi_dma_shim #(
         start_d1 <= 1'b0;
         start_d2 <= 1'b0;
       end else begin
-        start_d1 <= dma_start_transfer; // đồng bộ level vào domain shim
+        start_d1 <= dma_start_transfer; 
         start_d2 <= start_d1;
       end
     end
@@ -220,7 +232,7 @@ module axi_dma_shim #(
             w_done  <= 1'b0;
             ar_done <= 1'b0;
 
-            // AXI-Lite mặc định idle
+            // AXI-Lite idle at default
             m_axi_lite_awaddr  <= {C_M_AXI_LITE_ADDR_WIDTH{1'b0}};
             m_axi_lite_awprot  <= 3'b000;
             m_axi_lite_awvalid <= 1'b0;
@@ -238,9 +250,7 @@ module axi_dma_shim #(
             m_axi_lite_rready  <= 1'b0;
 
         end else begin
-            // tạo xung done 1 clock
-//            if (dma_transfer_done)
-//                dma_transfer_done <= 1'b0;
+
 
             // Default values
             m_axi_lite_awvalid <= 1'b0;
@@ -251,10 +261,10 @@ module axi_dma_shim #(
 
             case (state)
                 // ---------------------------------------------------
-                // IDLE: chờ start, latch tham số, chọn map thanh ghi
+                // IDLE: 
                 // ---------------------------------------------------
                 ST_IDLE: begin
-                    // Clear cờ tại thời điểm bắt đầu 1 lệnh mới
+                    // Clear flag
                     aw_done <= 1'b0;
                     w_done  <= 1'b0;
                     ar_done <= 1'b0;
@@ -262,8 +272,8 @@ module axi_dma_shim #(
                     if (start_pulse) begin
                         dma_transfer_done <= 0;
                         latched_addr <= dma_ddr_addr;
-                        // Tuy nhiên theo giao ước, dma_length_bytes ĐÃ là bytes → gán thẳng:
-                        latched_len  <= dma_length_bytes; // <<== CHUẨN
+                        
+                        latched_len  <= dma_length_bytes; 
                         latched_dir  <= dma_direction;
 
                         if (dma_direction) begin
@@ -283,7 +293,7 @@ module axi_dma_shim #(
                 end
 
                 // ---------------------------------------------------
-                // GHI DMACR: bật run + enable IOC interrupt
+                // GHI DMACR: 
                 // ---------------------------------------------------
                 ST_WR_DMACR: begin
                     // AW
@@ -309,7 +319,7 @@ module axi_dma_shim #(
                         m_axi_lite_bready <= 1'b1;
                         if (m_axi_lite_bvalid && m_axi_lite_bready) begin
                           m_axi_lite_bready <= 1'b0;
-                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                          aw_done <= 1'b0; w_done <= 1'b0;   
                         end
                     end else begin
                         m_axi_lite_bready <= 1'b0;
@@ -317,7 +327,7 @@ module axi_dma_shim #(
                 end
 
                 // ---------------------------------------------------
-                // GHI SA/DA
+                // Write SA/DA
                 // ---------------------------------------------------
                 ST_WR_ADDR: begin
                     // AW
@@ -343,7 +353,7 @@ module axi_dma_shim #(
                         m_axi_lite_bready <= 1'b1;
                         if (m_axi_lite_bvalid && m_axi_lite_bready) begin
                           m_axi_lite_bready <= 1'b0;
-                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                          aw_done <= 1'b0; w_done <= 1'b0;   
                         end
                     end else begin
                         m_axi_lite_bready <= 1'b0;
@@ -351,7 +361,7 @@ module axi_dma_shim #(
                 end
 
                 // ---------------------------------------------------
-                // GHI LENGTH (kick DMA)
+                // Write LENGTH (kick DMA)
                 // ---------------------------------------------------
                 ST_WR_LEN: begin
                     // AW
@@ -366,7 +376,7 @@ module axi_dma_shim #(
                     // W
                     if (!w_done) begin
                         m_axi_lite_wvalid <= 1'b1;
-                        m_axi_lite_wdata  <= latched_len; // ĐÃ là bytes
+                        m_axi_lite_wdata  <= latched_len; 
                         m_axi_lite_wstrb  <= 4'b1111;
                         if (m_axi_lite_wvalid && m_axi_lite_wready) begin
                             w_done <= 1'b1;
@@ -377,7 +387,7 @@ module axi_dma_shim #(
                         m_axi_lite_bready <= 1'b1;
                         if (m_axi_lite_bvalid && m_axi_lite_bready) begin
                           m_axi_lite_bready <= 1'b0;
-                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                          aw_done <= 1'b0; w_done <= 1'b0;   
                         end
                     end else begin
                         m_axi_lite_bready <= 1'b0;
@@ -385,10 +395,10 @@ module axi_dma_shim #(
                 end
 
                 // ---------------------------------------------------
-                // Bắt đầu đọc DMASR (poll)
+                // Read DMASR (poll)
                 // ---------------------------------------------------
                 ST_POLL_RD: begin
-                // AR - Gửi read request (chỉ khi chưa gửi hoặc cần gửi lại)
+                // AR - read request 
                     if (!ar_done) begin
                         m_axi_lite_arvalid <= 1'b1;
                         m_axi_lite_araddr  <= reg_dmasr_addr;
@@ -398,23 +408,23 @@ module axi_dma_shim #(
                         end
                     end
                     
-                    // R - Luôn sẵn sàng nhận data
+                    // R - ready to receive data
                     m_axi_lite_rready <= 1'b1;
                     
-                    // Khi nhận được data, check status và reset để poll lại nếu cần
+                    // check status
                     if (m_axi_lite_rvalid && m_axi_lite_rready) begin
                         if (m_axi_lite_rdata[12] || m_axi_lite_rdata[1]) begin
-                            // Có IOC (bit 12) hoặc Idle (bit 1) → chuyển state
-                            ar_done <= 1'b0;  // Reset cho lần sau
+                            // IOC (bit 12) or Idle (bit 1) → next_state
+                            ar_done <= 1'b0;  // Reset
                         end else begin
-                            // Chưa xong, tiếp tục poll
-                            ar_done <= 1'b0;  // Reset để gửi read request lại
+                            // else keep polling
+                            ar_done <= 1'b0;  // Reset for to countinue request
                         end
                     end
                 end 
 
                 // ---------------------------------------------------
-                // GHI DMASR để XOÁ IOC
+                // Write DMASR to clear IOC
                 // ---------------------------------------------------
                 ST_ACK_IRQ: begin
                     // AW
@@ -429,7 +439,7 @@ module axi_dma_shim #(
                     // W
                     if (!w_done) begin
                         m_axi_lite_wvalid <= 1'b1;
-                        m_axi_lite_wdata  <= IRQ_IOC_MASK; // viết 1 để clear IOC
+                        m_axi_lite_wdata  <= IRQ_IOC_MASK; 
                         m_axi_lite_wstrb  <= 4'b1111;
                         if (m_axi_lite_wvalid && m_axi_lite_wready) begin
                             w_done <= 1'b1;
@@ -440,7 +450,7 @@ module axi_dma_shim #(
                         m_axi_lite_bready <= 1'b1;
                         if (m_axi_lite_bvalid && m_axi_lite_bready) begin
                           m_axi_lite_bready <= 1'b0;
-                          aw_done <= 1'b0; w_done <= 1'b0;   // reset cờ cho lệnh kế
+                          aw_done <= 1'b0; w_done <= 1'b0;   
                         end
                     end else begin
                         m_axi_lite_bready <= 1'b0;
@@ -448,7 +458,7 @@ module axi_dma_shim #(
                 end
 
                 // ---------------------------------------------------
-                // DONE: phát xung done rồi quay lại IDLE
+                // DONE: 
                 // ---------------------------------------------------
                 ST_DONE: begin
                     dma_transfer_done <= 1'b1;
