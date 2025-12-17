@@ -144,7 +144,6 @@ xilinx.com:ip:xlconcat:2.1\
 xilinx.com:ip:axi_gpio:2.0\
 xilinx.com:ip:smartconnect:1.0\
 xilinx.com:ip:xlslice:1.0\
-xilinx.com:ip:system_ila:1.1\
 xilinx.com:ip:axi_vdma:6.3\
 xilinx.com:ip:v_tc:6.2\
 xilinx.com:ip:v_axi4s_vid_out:4.0\
@@ -293,9 +292,7 @@ proc create_root_design { parentCell } {
     CONFIG.PCW_APU_CLK_RATIO_ENABLE {6:2:1} \
     CONFIG.PCW_APU_PERIPHERAL_FREQMHZ {650} \
     CONFIG.PCW_CAN0_PERIPHERAL_CLKSRC {External} \
-    CONFIG.PCW_CAN0_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_CAN1_PERIPHERAL_CLKSRC {External} \
-    CONFIG.PCW_CAN1_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_CAN_PERIPHERAL_CLKSRC {IO PLL} \
     CONFIG.PCW_CAN_PERIPHERAL_VALID {0} \
     CONFIG.PCW_CLK0_FREQ {125000000} \
@@ -409,14 +406,11 @@ proc create_root_design { parentCell } {
     CONFIG.PCW_GPIO_MIO_GPIO_ENABLE {1} \
     CONFIG.PCW_GPIO_MIO_GPIO_IO {MIO} \
     CONFIG.PCW_GPIO_PERIPHERAL_ENABLE {0} \
-    CONFIG.PCW_I2C0_PERIPHERAL_ENABLE {0} \
-    CONFIG.PCW_I2C1_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_I2C_RESET_ENABLE {0} \
     CONFIG.PCW_I2C_RESET_POLARITY {Active Low} \
     CONFIG.PCW_IMPORT_BOARD_PRESET {None} \
     CONFIG.PCW_INCLUDE_ACP_TRANS_CHECK {0} \
     CONFIG.PCW_IRQ_F2P_INTR {1} \
-    CONFIG.PCW_IRQ_F2P_MODE {DIRECT} \
     CONFIG.PCW_MIO_0_IOTYPE {LVCMOS 3.3V} \
     CONFIG.PCW_MIO_0_PULLUP {enabled} \
     CONFIG.PCW_MIO_0_SLEW {slow} \
@@ -630,7 +624,6 @@ proc create_root_design { parentCell } {
     CONFIG.PCW_PCAP_PERIPHERAL_CLKSRC {IO PLL} \
     CONFIG.PCW_PCAP_PERIPHERAL_FREQMHZ {200} \
     CONFIG.PCW_PERIPHERAL_BOARD_PRESET {part0} \
-    CONFIG.PCW_PJTAG_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_PLL_BYPASSMODE_ENABLE {0} \
     CONFIG.PCW_PRESET_BANK0_VOLTAGE {LVCMOS 3.3V} \
     CONFIG.PCW_PRESET_BANK1_VOLTAGE {LVCMOS 1.8V} \
@@ -672,25 +665,19 @@ proc create_root_design { parentCell } {
     CONFIG.PCW_SPI1_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_SPI_PERIPHERAL_CLKSRC {IO PLL} \
     CONFIG.PCW_SPI_PERIPHERAL_VALID {0} \
-    CONFIG.PCW_S_AXI_HP0_DATA_WIDTH {64} \
-    CONFIG.PCW_S_AXI_HP1_DATA_WIDTH {64} \
     CONFIG.PCW_TPIU_PERIPHERAL_CLKSRC {External} \
-    CONFIG.PCW_TRACE_INTERNAL_WIDTH {2} \
-    CONFIG.PCW_TRACE_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_TTC0_CLK0_PERIPHERAL_CLKSRC {CPU_1X} \
     CONFIG.PCW_TTC0_CLK0_PERIPHERAL_DIVISOR0 {1} \
     CONFIG.PCW_TTC0_CLK1_PERIPHERAL_CLKSRC {CPU_1X} \
     CONFIG.PCW_TTC0_CLK1_PERIPHERAL_DIVISOR0 {1} \
     CONFIG.PCW_TTC0_CLK2_PERIPHERAL_CLKSRC {CPU_1X} \
     CONFIG.PCW_TTC0_CLK2_PERIPHERAL_DIVISOR0 {1} \
-    CONFIG.PCW_TTC0_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_TTC1_CLK0_PERIPHERAL_CLKSRC {CPU_1X} \
     CONFIG.PCW_TTC1_CLK0_PERIPHERAL_DIVISOR0 {1} \
     CONFIG.PCW_TTC1_CLK1_PERIPHERAL_CLKSRC {CPU_1X} \
     CONFIG.PCW_TTC1_CLK1_PERIPHERAL_DIVISOR0 {1} \
     CONFIG.PCW_TTC1_CLK2_PERIPHERAL_CLKSRC {CPU_1X} \
     CONFIG.PCW_TTC1_CLK2_PERIPHERAL_DIVISOR0 {1} \
-    CONFIG.PCW_TTC1_PERIPHERAL_ENABLE {0} \
     CONFIG.PCW_UART0_BASEADDR {0xE0000000} \
     CONFIG.PCW_UART0_BAUD_RATE {115200} \
     CONFIG.PCW_UART0_GRP_FULL_ENABLE {0} \
@@ -801,7 +788,6 @@ proc create_root_design { parentCell } {
     CONFIG.PCW_VALUE_SILVERSION {3} \
     CONFIG.PCW_WDT_PERIPHERAL_CLKSRC {CPU_1X} \
     CONFIG.PCW_WDT_PERIPHERAL_DIVISOR0 {1} \
-    CONFIG.PCW_WDT_PERIPHERAL_ENABLE {0} \
   ] $processing_system7_0
 
 
@@ -811,7 +797,11 @@ proc create_root_design { parentCell } {
     CONFIG.c_include_mm2s_dre {1} \
     CONFIG.c_include_s2mm_dre {1} \
     CONFIG.c_include_sg {0} \
-    CONFIG.c_sg_length_width {14} \
+    CONFIG.c_m_axi_mm2s_data_width {64} \
+    CONFIG.c_m_axi_s2mm_data_width {64} \
+    CONFIG.c_m_axis_mm2s_tdata_width {64} \
+    CONFIG.c_s_axis_s2mm_tdata_width {64} \
+    CONFIG.c_sg_length_width {18} \
   ] $axi_dma_0
 
 
@@ -889,79 +879,13 @@ proc create_root_design { parentCell } {
   ] $xlslice_2
 
 
-  # Create instance: system_ila_0, and set properties
-  set system_ila_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:system_ila:1.1 system_ila_0 ]
-  set_property -dict [list \
-    CONFIG.C_MON_TYPE {MIX} \
-    CONFIG.C_NUM_MONITOR_SLOTS {6} \
-    CONFIG.C_NUM_OF_PROBES {8} \
-    CONFIG.C_PROBE0_TYPE {0} \
-    CONFIG.C_PROBE1_TYPE {0} \
-    CONFIG.C_PROBE1_WIDTH {32} \
-    CONFIG.C_PROBE2_TYPE {0} \
-    CONFIG.C_PROBE3_TYPE {0} \
-    CONFIG.C_PROBE3_WIDTH {4} \
-    CONFIG.C_PROBE4_TYPE {0} \
-    CONFIG.C_PROBE4_WIDTH {4} \
-    CONFIG.C_PROBE7_WIDTH {30} \
-    CONFIG.C_PROBE_WIDTH_PROPAGATION {MANUAL} \
-    CONFIG.C_SLOT_0_APC_EN {0} \
-    CONFIG.C_SLOT_0_AXI_AR_SEL_DATA {1} \
-    CONFIG.C_SLOT_0_AXI_AR_SEL_TRIG {1} \
-    CONFIG.C_SLOT_0_AXI_AW_SEL_DATA {1} \
-    CONFIG.C_SLOT_0_AXI_AW_SEL_TRIG {1} \
-    CONFIG.C_SLOT_0_AXI_B_SEL_DATA {1} \
-    CONFIG.C_SLOT_0_AXI_B_SEL_TRIG {1} \
-    CONFIG.C_SLOT_0_AXI_R_SEL_DATA {1} \
-    CONFIG.C_SLOT_0_AXI_R_SEL_TRIG {1} \
-    CONFIG.C_SLOT_0_AXI_W_SEL_DATA {1} \
-    CONFIG.C_SLOT_0_AXI_W_SEL_TRIG {1} \
-    CONFIG.C_SLOT_0_INTF_TYPE {xilinx.com:interface:aximm_rtl:1.0} \
-    CONFIG.C_SLOT_1_APC_EN {0} \
-    CONFIG.C_SLOT_1_AXI_AR_SEL_DATA {1} \
-    CONFIG.C_SLOT_1_AXI_AR_SEL_TRIG {1} \
-    CONFIG.C_SLOT_1_AXI_AW_SEL_DATA {0} \
-    CONFIG.C_SLOT_1_AXI_AW_SEL_TRIG {0} \
-    CONFIG.C_SLOT_1_AXI_B_SEL_DATA {0} \
-    CONFIG.C_SLOT_1_AXI_B_SEL_TRIG {0} \
-    CONFIG.C_SLOT_1_AXI_R_SEL_DATA {1} \
-    CONFIG.C_SLOT_1_AXI_R_SEL_TRIG {1} \
-    CONFIG.C_SLOT_1_AXI_W_SEL_DATA {0} \
-    CONFIG.C_SLOT_1_AXI_W_SEL_TRIG {0} \
-    CONFIG.C_SLOT_1_INTF_TYPE {xilinx.com:interface:aximm_rtl:1.0} \
-    CONFIG.C_SLOT_2_APC_EN {0} \
-    CONFIG.C_SLOT_2_AXI_AR_SEL_DATA {0} \
-    CONFIG.C_SLOT_2_AXI_AR_SEL_TRIG {0} \
-    CONFIG.C_SLOT_2_AXI_AW_SEL_DATA {1} \
-    CONFIG.C_SLOT_2_AXI_AW_SEL_TRIG {1} \
-    CONFIG.C_SLOT_2_AXI_B_SEL_DATA {1} \
-    CONFIG.C_SLOT_2_AXI_B_SEL_TRIG {1} \
-    CONFIG.C_SLOT_2_AXI_R_SEL_DATA {0} \
-    CONFIG.C_SLOT_2_AXI_R_SEL_TRIG {0} \
-    CONFIG.C_SLOT_2_AXI_W_SEL_DATA {1} \
-    CONFIG.C_SLOT_2_AXI_W_SEL_TRIG {1} \
-    CONFIG.C_SLOT_2_INTF_TYPE {xilinx.com:interface:aximm_rtl:1.0} \
-    CONFIG.C_SLOT_3_APC_EN {0} \
-    CONFIG.C_SLOT_3_AXI_DATA_SEL {1} \
-    CONFIG.C_SLOT_3_AXI_TRIG_SEL {1} \
-    CONFIG.C_SLOT_3_INTF_TYPE {xilinx.com:interface:axis_rtl:1.0} \
-    CONFIG.C_SLOT_4_APC_EN {0} \
-    CONFIG.C_SLOT_4_AXI_DATA_SEL {1} \
-    CONFIG.C_SLOT_4_AXI_TRIG_SEL {1} \
-    CONFIG.C_SLOT_4_INTF_TYPE {xilinx.com:interface:axis_rtl:1.0} \
-    CONFIG.C_SLOT_5_APC_EN {0} \
-    CONFIG.C_SLOT_5_AXI_DATA_SEL {1} \
-    CONFIG.C_SLOT_5_AXI_TRIG_SEL {1} \
-    CONFIG.C_SLOT_5_INTF_TYPE {xilinx.com:interface:axis_rtl:1.0} \
-  ] $system_ila_0
-
-
   # Create instance: axi_vdma_0, and set properties
   set axi_vdma_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_vdma:6.3 axi_vdma_0 ]
   set_property -dict [list \
     CONFIG.c_include_s2mm {0} \
+    CONFIG.c_m_axis_mm2s_tdata_width {32} \
     CONFIG.c_mm2s_genlock_mode {0} \
-    CONFIG.c_mm2s_linebuffer_depth {2048} \
+    CONFIG.c_mm2s_linebuffer_depth {512} \
     CONFIG.c_mm2s_max_burst_length {32} \
   ] $axi_vdma_0
 
@@ -978,6 +902,7 @@ proc create_root_design { parentCell } {
   set v_axi4s_vid_out_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:v_axi4s_vid_out:4.0 v_axi4s_vid_out_0 ]
   set_property -dict [list \
     CONFIG.C_HAS_ASYNC_CLK {1} \
+    CONFIG.C_PIXELS_PER_CLOCK {1} \
     CONFIG.C_VTG_MASTER_SLAVE {1} \
   ] $v_axi4s_vid_out_0
 
@@ -987,31 +912,13 @@ proc create_root_design { parentCell } {
   set_property -dict [list \
     CONFIG.M_HAS_TKEEP {1} \
     CONFIG.M_HAS_TLAST {1} \
-    CONFIG.M_HAS_TREADY {1} \
-    CONFIG.M_HAS_TSTRB {0} \
     CONFIG.M_TDATA_NUM_BYTES {3} \
-    CONFIG.M_TDEST_WIDTH {0} \
-    CONFIG.M_TID_WIDTH {0} \
     CONFIG.M_TUSER_WIDTH {1} \
     CONFIG.S_HAS_TKEEP {1} \
     CONFIG.S_HAS_TLAST {1} \
-    CONFIG.S_HAS_TREADY {1} \
-    CONFIG.S_HAS_TSTRB {0} \
     CONFIG.S_TDATA_NUM_BYTES {4} \
-    CONFIG.S_TDEST_WIDTH {0} \
-    CONFIG.S_TID_WIDTH {0} \
     CONFIG.S_TUSER_WIDTH {1} \
-  ] $axis_subset_converter_0
-
-  set_property -dict [list \
-    CONFIG.M_HAS_TREADY.VALUE_MODE {auto} \
-    CONFIG.M_HAS_TSTRB.VALUE_MODE {auto} \
-    CONFIG.M_TDEST_WIDTH.VALUE_MODE {auto} \
-    CONFIG.M_TID_WIDTH.VALUE_MODE {auto} \
-    CONFIG.S_HAS_TREADY.VALUE_MODE {auto} \
-    CONFIG.S_HAS_TSTRB.VALUE_MODE {auto} \
-    CONFIG.S_TDEST_WIDTH.VALUE_MODE {auto} \
-    CONFIG.S_TID_WIDTH.VALUE_MODE {auto} \
+    CONFIG.TDATA_REMAP {tdata[23:0]} \
   ] $axis_subset_converter_0
 
 
@@ -1026,13 +933,20 @@ proc create_root_design { parentCell } {
     CONFIG.CLKOUT2_PHASE_ERROR {368.066} \
     CONFIG.CLKOUT2_REQUESTED_OUT_FREQ {371.25} \
     CONFIG.CLKOUT2_USED {true} \
+    CONFIG.CLKOUT3_JITTER {157.337} \
+    CONFIG.CLKOUT3_PHASE_ERROR {127.299} \
+    CONFIG.CLKOUT3_REQUESTED_OUT_FREQ {148.5} \
+    CONFIG.CLKOUT3_USED {false} \
     CONFIG.CLK_IN1_BOARD_INTERFACE {sys_clock} \
     CONFIG.CLK_OUT1_PORT {pixel_clk} \
     CONFIG.CLK_OUT2_PORT {serdes_clk} \
+    CONFIG.CLK_OUT3_PORT {pixel_fast_clk} \
     CONFIG.MMCM_CLKFBOUT_MULT_F {62.375} \
     CONFIG.MMCM_CLKIN1_PERIOD {8.000} \
+    CONFIG.MMCM_CLKIN2_PERIOD {10.000} \
     CONFIG.MMCM_CLKOUT0_DIVIDE_F {15.000} \
     CONFIG.MMCM_CLKOUT1_DIVIDE {3} \
+    CONFIG.MMCM_CLKOUT2_DIVIDE {1} \
     CONFIG.MMCM_DIVCLK_DIVIDE {7} \
     CONFIG.NUM_OUT_CLKS {2} \
     CONFIG.PRIM_IN_FREQ {125.000} \
@@ -1050,20 +964,14 @@ proc create_root_design { parentCell } {
 
   # Create interface connections
   connect_bd_intf_net -intf_net axi_dma_0_M_AXIS_MM2S [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S] [get_bd_intf_pins axi_dma_shim_0/s_axis]
-connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_0_M_AXIS_MM2S] [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S] [get_bd_intf_pins system_ila_0/SLOT_3_AXIS]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_0_M_AXIS_MM2S]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_MM2S [get_bd_intf_pins axi_dma_0/M_AXI_MM2S] [get_bd_intf_pins axi_mem_intercon/S00_AXI]
-connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_0_M_AXI_MM2S] [get_bd_intf_pins axi_dma_0/M_AXI_MM2S] [get_bd_intf_pins system_ila_0/SLOT_1_AXI]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_0_M_AXI_MM2S]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_S2MM [get_bd_intf_pins axi_dma_0/M_AXI_S2MM] [get_bd_intf_pins axi_mem_intercon/S01_AXI]
-connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_0_M_AXI_S2MM] [get_bd_intf_pins axi_dma_0/M_AXI_S2MM] [get_bd_intf_pins system_ila_0/SLOT_2_AXI]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_0_M_AXI_S2MM]
   connect_bd_intf_net -intf_net axi_dma_shim_0_m_axil [get_bd_intf_pins axi_dma_shim_0/m_axi_lite] [get_bd_intf_pins axi_dma_0/S_AXI_LITE]
-connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_shim_0_m_axil] [get_bd_intf_pins axi_dma_shim_0/m_axi_lite] [get_bd_intf_pins system_ila_0/SLOT_0_AXI]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_shim_0_m_axil]
   connect_bd_intf_net -intf_net axi_dma_shim_0_m_axis [get_bd_intf_pins axi_dma_shim_0/m_axis] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
-connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_shim_0_m_axis] [get_bd_intf_pins axi_dma_shim_0/m_axis] [get_bd_intf_pins system_ila_0/SLOT_4_AXIS]
-  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_shim_0_m_axis]
   connect_bd_intf_net -intf_net axi_mem_intercon_M00_AXI [get_bd_intf_pins axi_mem_intercon/M00_AXI] [get_bd_intf_pins processing_system7_0/S_AXI_HP0]
   connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_gpio_1/S_AXI] [get_bd_intf_pins axi_smc/M01_AXI]
@@ -1084,15 +992,13 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_shim_0_m_axis] [get_bd_i
   connect_bd_net -net axi_dma_0_s2mm_introut  [get_bd_pins axi_dma_0/s2mm_introut] \
   [get_bd_pins xlconcat_0/In1]
   connect_bd_net -net axi_dma_shim_0_dma_done  [get_bd_pins axi_dma_shim_0/dma_transfer_done] \
-  [get_bd_pins axi_gpio_1/gpio_io_i] \
-  [get_bd_pins system_ila_0/probe0]
+  [get_bd_pins axi_gpio_1/gpio_io_i]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_nets axi_dma_shim_0_dma_done]
   connect_bd_net -net axi_gpio_0_gpio2_io_o  [get_bd_pins axi_gpio_0/gpio2_io_o] \
   [get_bd_pins xlslice_0/Din] \
   [get_bd_pins xlslice_1/Din] \
   [get_bd_pins xlslice_2/Din]
   connect_bd_net -net axi_gpio_0_gpio_io_o  [get_bd_pins axi_gpio_0/gpio_io_o] \
-  [get_bd_pins system_ila_0/probe1] \
   [get_bd_pins axi_dma_shim_0/dma_ddr_addr]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_nets axi_gpio_0_gpio_io_o]
   connect_bd_net -net clk_wiz_0_locked  [get_bd_pins clk_wiz_0/locked] \
@@ -1105,9 +1011,6 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_shim_0_m_axis] [get_bd_i
   [get_bd_pins proc_sys_reset_0/slowest_sync_clk]
   connect_bd_net -net clk_wiz_0_serdes_clk  [get_bd_pins clk_wiz_0/serdes_clk] \
   [get_bd_ports serdes_clk_0]
-  connect_bd_net -net next_state  [get_bd_pins axi_dma_shim_0/next_state] \
-  [get_bd_pins system_ila_0/probe3]
-  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_nets next_state]
   connect_bd_net -net proc_sys_reset_0_peripheral_aresetn  [get_bd_pins proc_sys_reset_0/peripheral_aresetn] \
   [get_bd_pins v_tc_0/resetn] \
   [get_bd_pins v_axi4s_vid_out_0/aresetn]
@@ -1125,15 +1028,14 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_shim_0_m_axis] [get_bd_i
   [get_bd_pins axi_gpio_0/s_axi_aclk] \
   [get_bd_pins axi_smc/aclk] \
   [get_bd_pins axi_gpio_1/s_axi_aclk] \
-  [get_bd_pins system_ila_0/clk] \
-  [get_bd_pins axi_dma_shim_0/clk] \
   [get_bd_pins axi_vdma_0/m_axi_mm2s_aclk] \
   [get_bd_pins smartconnect_0/aclk] \
   [get_bd_pins axi_vdma_0/m_axis_mm2s_aclk] \
   [get_bd_pins axis_subset_converter_0/aclk] \
   [get_bd_pins axi_vdma_0/s_axi_lite_aclk] \
   [get_bd_pins v_axi4s_vid_out_0/aclk] \
-  [get_bd_pins processing_system7_0/S_AXI_HP1_ACLK]
+  [get_bd_pins processing_system7_0/S_AXI_HP1_ACLK] \
+  [get_bd_pins axi_dma_shim_0/clk]
   connect_bd_net -net processing_system7_0_FCLK_RESET0_N  [get_bd_pins processing_system7_0/FCLK_RESET0_N] \
   [get_bd_pins rst_ps7_0_142M/ext_reset_in] \
   [get_bd_pins proc_sys_reset_0/ext_reset_in]
@@ -1146,16 +1048,10 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_shim_0_m_axis] [get_bd_i
   [get_bd_pins axi_gpio_0/s_axi_aresetn] \
   [get_bd_pins axi_smc/aresetn] \
   [get_bd_pins axi_gpio_1/s_axi_aresetn] \
-  [get_bd_pins system_ila_0/resetn] \
-  [get_bd_pins system_ila_0/probe2] \
-  [get_bd_pins axi_dma_shim_0/resetn] \
   [get_bd_pins axis_subset_converter_0/aresetn] \
   [get_bd_pins axi_vdma_0/axi_resetn] \
-  [get_bd_pins smartconnect_0/aresetn]
-  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_nets rst_ps7_0_142M_peripheral_aresetn]
-  connect_bd_net -net state  [get_bd_pins axi_dma_shim_0/state] \
-  [get_bd_pins system_ila_0/probe4]
-  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_nets state]
+  [get_bd_pins smartconnect_0/aresetn] \
+  [get_bd_pins axi_dma_shim_0/resetn]
   connect_bd_net -net sys_clock_1  [get_bd_ports sys_clock] \
   [get_bd_pins clk_wiz_0/clk_in1]
   connect_bd_net -net v_axi4s_vid_out_0_vtg_ce  [get_bd_pins v_axi4s_vid_out_0/vtg_ce] \
@@ -1165,13 +1061,10 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_shim_0_m_axis] [get_bd_i
   connect_bd_net -net xlconcat_0_dout  [get_bd_pins xlconcat_0/dout] \
   [get_bd_pins processing_system7_0/IRQ_F2P]
   connect_bd_net -net xlslice_0_Dout  [get_bd_pins xlslice_0/Dout] \
-  [get_bd_pins system_ila_0/probe7] \
   [get_bd_pins axi_dma_shim_0/dma_length_bytes]
   connect_bd_net -net xlslice_1_Dout  [get_bd_pins xlslice_1/Dout] \
-  [get_bd_pins system_ila_0/probe5] \
   [get_bd_pins axi_dma_shim_0/dma_start_transfer]
   connect_bd_net -net xlslice_2_Dout  [get_bd_pins xlslice_2/Dout] \
-  [get_bd_pins system_ila_0/probe6] \
   [get_bd_pins axi_dma_shim_0/dma_direction]
 
   # Create address segments
