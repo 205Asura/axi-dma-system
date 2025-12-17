@@ -5,71 +5,71 @@ module axi_dma_shim #(
     parameter M_AXI_LITE_DATA_WIDTH = 32,
     parameter AXIS_DATA_WIDTH       = 64,             // Changed to 64
     parameter AXIS_TKEEP_WIDTH      = AXIS_DATA_WIDTH / 8, // Calc: 8 bits
-    parameter DMA_BASE_ADDR           = 32'h41E0_0000 
+    parameter DMA_BASE_ADDR         = 32'h41E0_0000 
 )(
-    input  wire                               clk,
-    input  wire                               resetn,
+    input  wire                                 clk,
+    input  wire                                 resetn,
 
     // Friendly interface
-    input  wire                               dma_start_transfer,   
-    input  wire                               dma_direction,        // 1 = MM2S, 0 = S2MM
-    input  wire [31:0]                        dma_ddr_addr,         
-    input  wire [29:0]                        dma_length_bytes,     
-    output reg                                dma_transfer_done,     
+    input  wire                                 dma_start_transfer,   
+    input  wire                                 dma_direction,        // 1 = MM2S, 0 = S2MM
+    input  wire [31:0]                          dma_ddr_addr,         
+    input  wire [29:0]                          dma_length_bytes,     
+    output reg                                  dma_transfer_done,     
 
     // AXI-Lite Master to AXI DMA (Control Interface - REMAINS 32-BIT)
-    output reg  [M_AXI_LITE_ADDR_WIDTH-1:0] m_axi_lite_awaddr,
-    output reg  [2:0]                         m_axi_lite_awprot,
-    output reg                                m_axi_lite_awvalid,
-    input  wire                               m_axi_lite_awready,
+    output reg  [M_AXI_LITE_ADDR_WIDTH-1:0]     m_axi_lite_awaddr,
+    output reg  [2:0]                           m_axi_lite_awprot,
+    output reg                                  m_axi_lite_awvalid,
+    input  wire                                 m_axi_lite_awready,
 
-    output reg  [M_AXI_LITE_DATA_WIDTH-1:0] m_axi_lite_wdata,
+    output reg  [M_AXI_LITE_DATA_WIDTH-1:0]     m_axi_lite_wdata,
     output reg  [(M_AXI_LITE_DATA_WIDTH/8)-1:0] m_axi_lite_wstrb,
-    output reg                                m_axi_lite_wvalid,
-    input  wire                               m_axi_lite_wready,
+    output reg                                  m_axi_lite_wvalid,
+    input  wire                                 m_axi_lite_wready,
 
-    input  wire [1:0]                         m_axi_lite_bresp,
-    input  wire                               m_axi_lite_bvalid,
-    output reg                                m_axi_lite_bready,
+    input  wire [1:0]                           m_axi_lite_bresp,
+    input  wire                                 m_axi_lite_bvalid,
+    output reg                                  m_axi_lite_bready,
 
-    output reg  [M_AXI_LITE_ADDR_WIDTH-1:0] m_axi_lite_araddr,
-    output reg  [2:0]                         m_axi_lite_arprot,
-    output reg                                m_axi_lite_arvalid,
-    input  wire                               m_axi_lite_arready,
+    output reg  [M_AXI_LITE_ADDR_WIDTH-1:0]     m_axi_lite_araddr,
+    output reg  [2:0]                           m_axi_lite_arprot,
+    output reg                                  m_axi_lite_arvalid,
+    input  wire                                 m_axi_lite_arready,
 
-    input  wire [M_AXI_LITE_DATA_WIDTH-1:0] m_axi_lite_rdata,
-    input  wire [1:0]                         m_axi_lite_rresp,
-    input  wire                               m_axi_lite_rvalid,
-    output reg                                m_axi_lite_rready,
+    input  wire [M_AXI_LITE_DATA_WIDTH-1:0]     m_axi_lite_rdata,
+    input  wire [1:0]                           m_axi_lite_rresp,
+    input  wire                                 m_axi_lite_rvalid,
+    output reg                                  m_axi_lite_rready,
 
     // ---------------------------------------------------------------------
     // AXIS passthrough (64-bit / Parameterized)
     // ---------------------------------------------------------------------
     
     // DMA MM2S -> shim s_axis
-    input  wire [AXIS_DATA_WIDTH-1:0]       s_axis_tdata,
-    input  wire [AXIS_TKEEP_WIDTH-1:0]      s_axis_tkeep,
+    input  wire [AXIS_DATA_WIDTH-1:0]         s_axis_tdata,
+    input  wire [AXIS_TKEEP_WIDTH-1:0]        s_axis_tkeep,
     input  wire                               s_axis_tlast,
     input  wire                               s_axis_tvalid,
     output wire                               s_axis_tready,
     
     // shim m_axis -> Accelerator
-    output wire [AXIS_DATA_WIDTH-1:0]       m_axis_accel_tdata,
-    output wire [AXIS_TKEEP_WIDTH-1:0]      m_axis_accel_tkeep,
+    output wire [AXIS_DATA_WIDTH-1:0]         m_axis_accel_tdata,
+    output wire [AXIS_TKEEP_WIDTH-1:0]        m_axis_accel_tkeep,
     output wire                               m_axis_accel_tlast,
     output wire                               m_axis_accel_tvalid,
     input  wire                               m_axis_accel_tready,
 
     // Accelerator -> shim s_axis
-    input  wire [AXIS_DATA_WIDTH-1:0]       s_accel_axis_tdata,
-    input  wire [AXIS_TKEEP_WIDTH-1:0]      s_accel_axis_tkeep,
+    input  wire [AXIS_DATA_WIDTH-1:0]         s_accel_axis_tdata,
+    input  wire [AXIS_TKEEP_WIDTH-1:0]        s_accel_axis_tkeep,
     input  wire                               s_accel_axis_tlast,
     input  wire                               s_accel_axis_tvalid,
     output wire                               s_accel_axis_tready,
     
     // shim m_axis -> DMA S2MM
-    output wire [AXIS_DATA_WIDTH-1:0]       m_axis_tdata,
-    output wire [AXIS_TKEEP_WIDTH-1:0]      m_axis_tkeep,
+    output wire [AXIS_DATA_WIDTH-1:0]         m_axis_tdata,
+    output wire [AXIS_TKEEP_WIDTH-1:0]        m_axis_tkeep,
     output wire                               m_axis_tlast,
     output wire                               m_axis_tvalid,
     input  wire                               m_axis_tready,
@@ -84,7 +84,7 @@ module axi_dma_shim #(
     assign m_axis_accel_tlast  = s_axis_tlast;
     assign m_axis_accel_tvalid = s_axis_tvalid;
     // assign s_axis_tready = m_axis_accel_tready; 
-    assign s_axis_tready = 1'b1; // Keeping your logic: Always ready to accept from DMA
+    assign s_axis_tready = 1'b1; // Always ready to accept from DMA, will change when accelerator finishes
 
     // S2MM Pass through
     assign m_axis_tdata  = s_accel_axis_tdata;
